@@ -1,0 +1,25 @@
+{
+    "name": "shimmer-tab",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "bangs:refresh": "node scripts/refresh-bangs.mjs",
+        "icons:refresh": "node scripts/refresh-svg-icons.mjs",
+        "zip": "vite build && cd dist && zip -qr ../helium-newtab.zip ."
+    },
+    "dependencies": {
+        "@fontsource-variable/instrument-sans": "^5.3.0",
+        "@imput/helium-prism": "^0.2.0",
+        "@material/material-color-utilities": "^0.4.0"
+    },
+    "devDependencies": {
+        "@sveltejs/vite-plugin-svelte": "^7.3.1",
+        "@types/chrome": "^0.3.6",
+        "svelte": "^5.57.2",
+        "typescript": "^7.0.2",
+        "vite": "^8.3.5"
+    }
+}

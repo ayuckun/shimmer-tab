@@ -1,0 +1,156 @@
+// Short, fast-paced showcase clips (dark theme comes from the browser flags in
+// record-clips.sh). Usage: node record-clips.mjs <outdir> [clip names...]
+import { baseSettings as base, connect } from "./rec-lib.mjs";
+
+const OUT = process.argv[2];
+const only = process.argv.slice(3);
+const r = await connect();
+const { sleep } = r;
+const sw = (name) => r.byText("[role=switch]", name);
+const tab = (name) => r.byText("header .segmented button", name);
+const bgTile = (name) => r.byText(".bg-option", name);
+const gear = `document.querySelector('[aria-label="Settings"]')`;
+
+const clips = {
+    // jump out of hyperspace, then whip the cursor around the starfield
+    async warp(dir) {
+        await r.setup({ ...base, background: "stars" });
+        r.start(dir);
+        await r.open();
+        await sleep(250);
+        await r.cursor();
+        await sleep(1300);
+        await r.moveTo(1150, 640, 350);
+        await r.moveTo(150, 120, 650);
+        await r.moveTo(1180, 160, 550);
+        await r.moveTo(260, 650, 600);
+        await r.moveTo(640, 470, 450);
+        await sleep(500);
+    },
+
+    // bangs: autocomplete → keyword chip, twice
+    async bangs(dir) {
+        await r.setup({ ...base, background: "shimmer" });
+        r.start(dir);
+        await sleep(200);
+        await r.clickEl(`document.querySelector('input[type=search]')`, 450);
+        await r.type("!y", 90, 120);
+        await sleep(550);
+        await r.key("ArrowDown", 40);
+        await sleep(250);
+        await r.key("Tab", 9);
+        await sleep(250);
+        await r.type("synthwave mix");
+        await sleep(700);
+        await r.clearSearch();
+        await sleep(250);
+        await r.type("!g", 90, 120);
+        await sleep(450);
+        await r.key("ArrowDown", 40);
+        await sleep(220);
+        await r.key("Tab", 9);
+        await sleep(250);
+        await r.type("imputnet/helium");
+        await sleep(800);
+    },
+
+    // wallpapers back to back: stripes punch down, blobs flow in
+    async wallpapers(dir) {
+        await r.setup({ ...base, background: "stars" });
+        await r.clickEl(gear, 200);
+        await sleep(500);
+        r.start(dir);
+        await sleep(150);
+        await r.clickEl(bgTile("Shimmer"), 380);
+        await sleep(1350);
+        await r.clickEl(bgTile("Stars"), 300);
+        await sleep(1450);
+        await r.clickEl(bgTile("None"), 300);
+        await sleep(1250);
+        await r.clickEl(bgTile("Shimmer"), 300);
+        await sleep(1350);
+        await r.clickEl(bgTile("Stars"), 300);
+        await sleep(1300);
+    },
+
+    // icons: containers, recolor through the palette, names off and on
+    async icons(dir) {
+        await r.setup({ ...base, background: "stars" }, { tab: "shortcuts" });
+        await r.clickEl(gear, 200);
+        await sleep(500);
+        r.start(dir);
+        await sleep(150);
+        await r.clickEl(sw("Icon containers"), 380);
+        await sleep(700);
+        await r.clickEl(sw("Single color"), 350);
+        await sleep(650);
+        for (const color of ["Red", "Amber", "Green", "Purple", "Text", "Accent"]) {
+            await r.clickEl(`document.querySelector('.swatch[aria-label="${color}"]')`, 220);
+            await sleep(380);
+        }
+        await r.clickEl(sw("Single color"), 350);
+        await sleep(550);
+        await r.clickEl(sw("Names"), 350);
+        await sleep(650);
+        await r.clickEl(sw("Names"), 300);
+        await sleep(550);
+        await r.clickEl(sw("Icon containers"), 350);
+        await sleep(700);
+    },
+
+    // settings: morph through every tab, flip a few things
+    async settings(dir) {
+        await r.setup({ ...base, background: "shimmer" });
+        r.start(dir);
+        await sleep(150);
+        await r.clickEl(gear, 450);
+        await sleep(500);
+        for (const t of ["Shortcuts", "Widgets", "Search", "Data", "Widgets"]) {
+            await r.clickEl(tab(t), 330);
+            await sleep(430);
+        }
+        await r.clickEl(sw("Seconds"), 350);
+        await sleep(550);
+        await r.clickEl(r.byText(".segmented.small button, .segmented button", "12h"), 330);
+        await sleep(550);
+        await r.clickEl(r.byText(".segmented.small button, .segmented button", "24h"), 300);
+        await sleep(450);
+        await r.clickEl(tab("Look"), 330);
+        await sleep(450);
+        await r.clickEl(sw("Logo text"), 350);
+        await sleep(600);
+        await r.clickEl(sw("Logo text"), 300);
+        await sleep(600);
+        await r.click(220, 560, 450);
+        await sleep(600);
+    },
+
+    // weather details, then focus mode strips the page to the search bar
+    async focus(dir) {
+        await r.setup({ ...base, background: "stars" });
+        r.start(dir);
+        await sleep(150);
+        await r.hover(`document.querySelector('.weather')`, 500);
+        await sleep(1300);
+        await r.clickEl(`document.querySelector('[aria-label="Focus mode"]')`, 550);
+        await sleep(1100);
+        await r.clickEl(`document.querySelector('input[type=search]')`, 450);
+        await r.type("helium browser");
+        await sleep(600);
+        await r.clearSearch();
+        await r.clickEl(`document.querySelector('[aria-label="Show everything"]')`, 550);
+        await sleep(1100);
+    },
+};
+
+// warm-up (not recorded): icons, weather and the bang catalog get fetched and cached
+await r.setup({ ...base, background: "shimmer" }, { wait: 8000 });
+await r.ev(`fetch('bangs.json').then((res) => res.text())`);
+
+for (const [name, run] of Object.entries(clips)) {
+    if (only.length && !only.includes(name)) continue;
+    await run(`${OUT}/${name}`);
+    const n = r.stop();
+    console.log(name, n, "frames");
+}
+process.exit(0);

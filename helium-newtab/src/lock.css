@@ -1,0 +1,63 @@
+html,
+body {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+    touch-action: pan-x pan-y;
+    overscroll-behavior: none;
+}
+
+input,
+textarea {
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+img,
+svg {
+    -webkit-user-drag: none;
+}
+
+/* Prism's dark tokens, forced on for always-dark backgrounds (see scheme.svelte.ts) */
+:root[data-dark] {
+    color-scheme: dark;
+
+    --primary: #e3e6f2;
+    --secondary: #8f9bcb;
+    --tertiary: #7985b2;
+    --white: var(--primary);
+
+    --tooltip-bg: #1d2a5d;
+    --tooltip-shadow: color-mix(in srgb, var(--tooltip-bg) 40%, transparent);
+
+    --bg-surface: #0e1123;
+    --bg-gradient-start: #151932;
+    --bg-gradient-end: #2d3c7f;
+    --intro-gradient-start: var(--bg-gradient-start);
+    --intro-gradient-end: var(--bg-gradient-end);
+
+    --helium-elevated: #b3beec;
+    --glass-filter: blur(12px);
+}
+
+/* page-wide palette changes (motion.ts morphPage), Prism timing */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 0.3s;
+    animation-timing-function: ease;
+}
+
+/* colors ease to a new scheme during a background switch (scheme.svelte.ts forceDark) */
+:root[data-recolor] *:not(.bg-layer),
+:root[data-recolor] *::before,
+:root[data-recolor] *::after {
+    transition-property: color, background-color, border-color, outline-color, box-shadow, fill, stroke !important;
+    transition-duration: var(--recolor) !important;
+    transition-timing-function: ease-in-out !important;
+}
+
+/* the shimmer would fade in on its own; inside a reveal it should just be there */
+.bg-layer canvas {
+    transition: none !important;
+}
