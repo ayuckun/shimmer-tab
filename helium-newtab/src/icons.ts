@@ -1,7 +1,9 @@
+import { canReadSites } from "./permissions.svelte";
+
 // High-res site icons. The browser's favicon cache only has 16–32px icons, so we look
 // for what the site offers for home screens instead: web app manifest icons, apple-touch-icon,
 // SVG favicons and sized <link rel="icon">s, take the largest one, rasterize it to 192px and
-// cache it locally. Needs host permissions to read sites without CORS.
+// cache it locally. Reading sites needs the optional host permission (see permissions.svelte.ts).
 
 export type SiteIcon = {
     /** 192px PNG or SVG data URL, or "" if the site has nothing usable */
@@ -105,6 +107,12 @@ export async function measure(src: string): Promise<{ fit: Fit; fullBleed: boole
 const hasChrome = typeof chrome !== "undefined" && !!chrome.storage?.local;
 const memory = new Map<string, Promise<SiteIcon>>();
 
+// lookups made without access to sites hold placeholders; drop them when access changes
+if (typeof chrome !== "undefined" && chrome.permissions) {
+    chrome.permissions.onAdded.addListener(() => memory.clear());
+    chrome.permissions.onRemoved.addListener(() => memory.clear());
+}
+
 const origin = (url: string) => {
     try {
         return new URL(url).origin;
@@ -133,7 +141,8 @@ async function writeCache(key: string, icon: SiteIcon) {
 // Only public http(s) addresses. A site's manifest or <link> tags decide which URLs we
 // fetch, so without this a page could point us at file://, localhost or the local network.
 const PRIVATE_V4 = [
-    [0, 8], [10, 8], [100, 64, 10], [127, 8], [169, 254, 16], [172, 16, 12], [192, 168, 16],
+    [0, 8], [10, 8], [100, 64, 10], [127, 8], [169, 254, 16], [172, 16, 12], [192, 0, 24],
+    [192, 168, 16], [198, 18, 15], [224, 4], [240, 4],
 ] as const;
 
 function isPublicHttp(raw: string) {
@@ -144,7 +153,8 @@ function isPublicHttp(raw: string) {
         return false;
     }
     if (url.protocol !== "https:" && url.protocol !== "http:") return false;
-    const host = url.hostname.toLowerCase();
+    // "localhost." resolves like "localhost"
+    const host = url.hostname.toLowerCase().replace(/\.+$/, "");
     if (host === "localhost" || /\.(localhost|local|internal|lan|home\.arpa)$/.test(host)) return false;
     const v4 = host.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
     if (v4) {
@@ -156,17 +166,22 @@ function isPublicHttp(raw: string) {
         });
     }
     if (host.startsWith("[")) {
-        // IPv6 literal: loopback, unique local (fc00::/7), link-local (fe80::/10)
-        return !/^\[(::1?|f[cd][0-9a-f]*:|fe[89ab][0-9a-f]*:)/.test(host);
+        // IPv6 literal: loopback, IPv4-mapped, unique local (fc00::/7), link-local (fe80::/10)
+        return !/^\[(::1?\]|::ffff:|f[cd][0-9a-f]*:|fe[89ab][0-9a-f]*:)/.test(host);
     }
     return true;
 }
 
-async function get(url: string, accept: string) {
+/**
+ * `follow` only for the site's own page (the user picked that URL). Icon URLs come from
+ * the site's markup, so they may not redirect: an extension can't see a redirect's target
+ * before following it, so it can't check it first.
+ */
+async function get(url: string, accept: string, redirect: RequestRedirect = "error") {
     if (!isPublicHttp(url)) throw new Error("not a public http(s) URL");
     const res = await fetch(url, {
         credentials: "omit",
-        redirect: "follow",
+        redirect,
         headers: { accept },
         signal: AbortSignal.timeout(TIMEOUT),
     });
@@ -187,7 +202,7 @@ async function findCandidates(site: string): Promise<Candidate[]> {
     let base = site;
 
     try {
-        const res = await get(site, "text/html");
+        const res = await get(site, "text/html", "follow");
         base = res.url || site;
         const doc = new DOMParser().parseFromString(await res.text(), "text/html");
         const abs = (href: string) => new URL(href, base).href;
@@ -368,6 +383,9 @@ export function siteIcon(url: string): Promise<SiteIcon> {
         const key = PREFIX + site;
         const cached = await readCache(key);
         if (cached && Date.now() - cached.at < MAX_AGE) return cached;
+        // without access to sites: the browser's own favicon, not cached, so the real
+        // icon replaces it once access is granted
+        if (!(await canReadSites())) return cached?.src ? cached : browserFavicon(site);
         const icon = await resolve(site);
         // keep a stale icon over a failed refresh
         if (!icon.src && cached?.src) return cached;
@@ -376,6 +394,41 @@ export function siteIcon(url: string): Promise<SiteIcon> {
     })();
     memory.set(memoKey, pending);
     return pending;
+}
+
+function faviconUrl(site: string) {
+    const url = new URL(chrome.runtime.getURL("/_favicon/"));
+    url.searchParams.set("pageUrl", site);
+    url.searchParams.set("size", "64");
+    return url.toString();
+}
+
+/** A small pixel fingerprint, to spot the browser's generic globe icon. */
+async function fingerprint(src: string) {
+    try {
+        const img = await loadUrl(src);
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 16;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+        ctx.drawImage(img, 0, 0, 16, 16);
+        return Array.from(ctx.getImageData(0, 0, 16, 16).data, (v) => v >> 4).join("");
+    } catch {
+        return "";
+    }
+}
+
+let globe: Promise<string> | undefined;
+
+async function browserFavicon(site: string): Promise<SiteIcon> {
+    const none = { src: "", fullBleed: false };
+    if (typeof chrome === "undefined" || !chrome.runtime?.id) return none;
+    const src = faviconUrl(site);
+    // a site the browser hasn't seen gets the generic globe: a letter looks better
+    globe ??= fingerprint(faviconUrl("https://unknown.invalid/"));
+    const [own, generic] = await Promise.all([fingerprint(src), globe]);
+    if (!own || own === generic) return none;
+    const shape = await measure(src);
+    return { src, fullBleed: false, ...(shape ?? {}) };
 }
 
 /** Drops the cached icon so the next lookup fetches it again. */

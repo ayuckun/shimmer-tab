@@ -3,25 +3,30 @@
     "name": "Shimmer Tab for Helium",
     "short_name": "Shimmer Tab",
     "version": "1.0.0",
-    "description": "Helium-styled new tab page built with Helium Prism components",
+    "description": "A Helium-styled new tab page: flowing wallpapers, bangs with autocomplete and crisp shortcut icons.",
     "chrome_url_overrides": {
         "newtab": "index.html"
     },
     "permissions": [
         "storage",
         "search",
-        "favicon",
-        "topSites"
+        "favicon"
     ],
     "host_permissions": [
-        "https://*/*",
-        "http://*/*",
-        "file:///etc/chromium/policies/*"
+        "https://svgl.app/*"
     ],
     "icons": {
         "16": "icon-16.png",
         "32": "icon-32.png",
         "48": "icon-48.png",
         "128": "icon-128.png"
-    }
+    },
+    "optional_permissions": [
+        "topSites"
+    ],
+    "optional_host_permissions": [
+        "https://*/*",
+        "http://*/*",
+        "file:///etc/chromium/policies/*"
+    ]
 }

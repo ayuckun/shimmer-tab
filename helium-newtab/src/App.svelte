@@ -2,6 +2,7 @@
     import { onMount } from "svelte";
     import { drop, morphPage, pop, recede, reveal } from "./motion";
     import { forceDark } from "./scheme.svelte";
+    import { perms } from "./permissions.svelte";
     import {
         Button,
         GradientShimmer,
@@ -276,6 +277,7 @@
     });
 
     $effect(() => {
+        void perms.topSites; // the API shows up once the optional permission is granted
         if (!settings.topSites || typeof chrome === "undefined" || !chrome.topSites) return;
         chrome.topSites.get((sites) => {
             top = sites.slice(0, 8).map(({ title, url }) => ({ title, url }));

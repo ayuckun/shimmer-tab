@@ -1,5 +1,6 @@
 <script lang="ts">
     import { measure, siteIcon, type Fit, type SiteIcon } from "./icons";
+    import { perms } from "./permissions.svelte";
     import { knockout, tintMask } from "./tint";
     import { fade } from "svelte/transition";
     import { isDark } from "./scheme.svelte";
@@ -23,7 +24,7 @@
     const dark = $derived(isDark());
 
     $effect(() => {
-        icon = null;
+        void perms.epoch; // look again when access to sites changes
         let alive = true;
         siteIcon(url).then((i) => alive && (icon = i));
         return () => (alive = false);

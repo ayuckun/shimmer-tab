@@ -8,6 +8,7 @@
     import Stars from "./Stars.svelte";
     import "./preview-hack";
     import { pop } from "./motion";
+    import { grant, perms, revoke } from "./permissions.svelte";
     import { defaults, normalize, type Settings } from "./storage.svelte";
     import { Button } from "@imput/helium-prism";
 
@@ -116,6 +117,12 @@
     const previewScale = $derived(tileW / winW || 0.1);
 
     let panel: HTMLElement | undefined = $state();
+
+    // mirrors the optional permission; a declined prompt flips the toggle back
+    let sitesAccess = $state(perms.sites);
+    $effect(() => {
+        sitesAccess = perms.sites;
+    });
 
     // tab switch morph: the body animates to the new content height while the new
     // pane slides in from the side of the tab you moved to
@@ -236,7 +243,10 @@
                     <Toggle bind:checked={settings.quiet} onchange={emphasize} name="Focus mode" desc="Only the logo and search (eye button)" />
                     <Toggle
                         bind:checked={settings.browserTheme}
-                        onchange={emphasize}
+                        onchange={(on) => {
+                            emphasize();
+                            if (on) grant("policy").then((ok) => ok || (settings.browserTheme = false));
+                        }}
                         name="Browser colors"
                         desc={themeUnreadable
                             ? "Allow access to file URLs for this extension"
@@ -266,6 +276,16 @@
                             </Row>
                         {/if}
                         <Toggle bind:checked={settings.lockShortcuts} onchange={emphasize} name="Lock" desc="Hide add and edit buttons" />
+                        <Toggle
+                            bind:checked={sitesAccess}
+                            onchange={(on) => {
+                                emphasize();
+                                if (on) grant("sites").then((ok) => ok || (sitesAccess = false));
+                                else revoke("sites");
+                            }}
+                            name="Icons for every site"
+                            desc="Read sites' own HQ icons, not just popular services"
+                        />
                     {/if}
                 </div>
             </section>
@@ -273,7 +293,15 @@
             <section>
                 <h5>History</h5>
                 <div class="list">
-                    <Toggle bind:checked={settings.topSites} onchange={emphasize} name="Most visited" desc="Top sites below your shortcuts" />
+                    <Toggle
+                        bind:checked={settings.topSites}
+                        onchange={(on) => {
+                            emphasize();
+                            if (on) grant("topSites").then((ok) => ok || (settings.topSites = false));
+                        }}
+                        name="Most visited"
+                        desc="Top sites below your shortcuts"
+                    />
                 </div>
             </section>
         {:else if tab === "widgets"}
