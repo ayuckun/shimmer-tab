@@ -4,3 +4,6 @@ helium-newtab/dist/
 # showcase videos are big; attach them to releases instead
 previews/**/*.mp4
 .claude/
+
+# Chrome Web Store materials stay local
+store/

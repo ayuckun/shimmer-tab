@@ -16,11 +16,11 @@
     import Stars from "./Stars.svelte";
     import Settings from "./Settings.svelte";
     import Shortcuts from "./Shortcuts.svelte";
+    import SiteIcon from "./SiteIcon.svelte";
     import WeatherIcon from "./WeatherIcon.svelte";
     import { describe, getWeather, peekWeather, type Weather } from "./weather";
     import {
         loadCached,
-        favicon,
         load,
         normalizeUrl,
         save,
@@ -243,7 +243,6 @@
             keyword = null;
         }
     }
-    let iconFailed = $state("");
 
     // how much sits under the search bar (see .shell); only animate after the first layout
     let belowH = $state(0);
@@ -428,14 +427,10 @@
         >
             {#snippet leading()}
                 <span class="search-icon">
-                    {#if bang?.siteOrigin && favicon(bang.siteOrigin) && iconFailed !== bang.siteOrigin}
+                    {#if bang?.siteOrigin}
+                        <!-- same icons as the shortcuts: vector logos for popular services -->
                         {#key bang.siteOrigin}
-                            <img
-                                class="service-icon"
-                                src={favicon(bang.siteOrigin)}
-                                alt=""
-                                onerror={() => (iconFailed = bang?.siteOrigin ?? "")}
-                            />
+                            <SiteIcon url={bang.siteOrigin} title={bang.service} size={18} />
                         {/key}
                     {:else if bang}
                         <IconBang />
@@ -461,8 +456,8 @@
                             onclick={() => pickBang(item.trigger)}
                         >
                             <span class="bang-icon">
-                                {#if item.origin && favicon(item.origin)}
-                                    <img src={favicon(item.origin)} alt="" />
+                                {#if item.origin}
+                                    <SiteIcon url={item.origin} title={item.service} size={18} />
                                 {:else}
                                     <IconBang />
                                 {/if}
