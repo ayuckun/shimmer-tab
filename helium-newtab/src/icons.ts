@@ -130,7 +130,40 @@ async function writeCache(key: string, icon: SiteIcon) {
     } catch {}
 }
 
+// Only public http(s) addresses. A site's manifest or <link> tags decide which URLs we
+// fetch, so without this a page could point us at file://, localhost or the local network.
+const PRIVATE_V4 = [
+    [0, 8], [10, 8], [100, 64, 10], [127, 8], [169, 254, 16], [172, 16, 12], [192, 168, 16],
+] as const;
+
+function isPublicHttp(raw: string) {
+    let url: URL;
+    try {
+        url = new URL(raw);
+    } catch {
+        return false;
+    }
+    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+    const host = url.hostname.toLowerCase();
+    if (host === "localhost" || /\.(localhost|local|internal|lan|home\.arpa)$/.test(host)) return false;
+    const v4 = host.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+    if (v4) {
+        const ip = v4.slice(1).reduce((n, o) => n * 256 + Number(o), 0);
+        return !PRIVATE_V4.some((r) => {
+            const [a, b, bits] = r.length === 2 ? [r[0], 0, r[1]] : r;
+            const base = (a * 256 + b) * 65536;
+            return Math.floor(ip / 2 ** (32 - bits)) === Math.floor(base / 2 ** (32 - bits));
+        });
+    }
+    if (host.startsWith("[")) {
+        // IPv6 literal: loopback, unique local (fc00::/7), link-local (fe80::/10)
+        return !/^\[(::1?|f[cd][0-9a-f]*:|fe[89ab][0-9a-f]*:)/.test(host);
+    }
+    return true;
+}
+
 async function get(url: string, accept: string) {
+    if (!isPublicHttp(url)) throw new Error("not a public http(s) URL");
     const res = await fetch(url, {
         credentials: "omit",
         redirect: "follow",
@@ -138,6 +171,8 @@ async function get(url: string, accept: string) {
         signal: AbortSignal.timeout(TIMEOUT),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    // redirects get the same check
+    if (res.url && !isPublicHttp(res.url)) throw new Error("redirected to a non-public URL");
     return res;
 }
 

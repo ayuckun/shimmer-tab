@@ -14,7 +14,9 @@
         "topSites"
     ],
     "host_permissions": [
-        "<all_urls>"
+        "https://*/*",
+        "http://*/*",
+        "file:///etc/chromium/policies/*"
     ],
     "icons": {
         "16": "icon-16.png",
