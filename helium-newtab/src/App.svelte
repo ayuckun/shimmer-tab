@@ -849,11 +849,6 @@
         color: var(--tertiary);
     }
 
-    .bang-icon img {
-        width: 18px;
-        height: 18px;
-        border-radius: 4px;
-    }
 
     .bang-trigger {
         min-width: 64px;
@@ -875,13 +870,6 @@
         height: 18px;
     }
 
-    .service-icon {
-        width: 18px;
-        height: 18px;
-        border-radius: 25%;
-        object-fit: contain;
-        animation: fade-in 160ms ease;
-    }
 
     .service-name {
         max-width: 30vw;
