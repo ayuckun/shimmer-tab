@@ -82,15 +82,11 @@
     function enter(node: Element) {
         const from = shownBg;
         shownBg = bg;
+        // Initial paint is instant; transitions are only for a wallpaper changed in settings.
+        if (from === bg) return { duration: 0 };
         // stars → shimmer: stripes punch down from the top; everything else flows
         return from === "stars" && bg === "shimmer" ? drop(node) : reveal(node);
     }
-
-    // the page UI rises in after the star entrance (see Stars.svelte)
-    const starsEntrance =
-        bg === "stars" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let starsArrived = $state(!starsEntrance);
-    if (starsEntrance) setTimeout(() => (starsArrived = true), 1000); // never stay hidden
 
     // the shimmer's intro reveal is for page load only, not for switching to it
     let bgSwitched = false;
@@ -323,46 +319,64 @@
                 <GradientShimmer
                     bind:this={shimmer}
                     background
-                    intro={themeVersion === 0 && !bgSwitched}
+                    intro={false}
                     class="bg"
                 />
             {/key}
         {:else if bg === "stars"}
-            <Stars intro={!bgSwitched} onintro={() => (starsArrived = true)} />
+            <Stars intro={false} />
         {/if}
     </div>
 {/key}
 
-{#if (settings.clock || weather) && starsArrived && !settings.quiet}
-    <header class="datetime" transition:pop>
-        {#if settings.clock}
-            <span class="group" transition:pop>
-                <!-- a new format (12/24h, seconds) pops in instead of jumping -->
+<main
+    style:--below="{belowH}px"
+    class={["shell", settled && "settled", bg !== "none" && "glass-children", !settings.searchBar && "no-search"]}>
+    <!-- fixed box: both variants swap in place without moving the search -->
+    <div class="logo">
+        {#key settings.logoText}
+            <div class="logo-variant" transition:pop>
+                {#if settings.logoText}
+                    <HeliumLogo height="44px" text />
+                {:else}
+                    <HeliumLogo height="56px" />
+                {/if}
+            </div>
+        {/key}
+    </div>
+
+    {#if settings.clock && !settings.quiet}
+        <header class="datetime" transition:pop>
+            <span class="clock-group" transition:pop>
                 {#key `${settings.hour12}${settings.seconds}`}
                     <span class="time" in:pop={{ from: 0.9, duration: 200 }}>{time}</span>
                 {/key}
-                <span class="dot" aria-hidden="true">·</span>
                 <span class="date">{date}</span>
             </span>
-        {/if}
-        {#if settings.clock && weather}
-            <span class="dot" aria-hidden="true" transition:pop>·</span>
-        {/if}
-        {#if weather}
-            {@const info = describe(weather.code)}
-            {@const w = weather}
-            <span class="group" transition:pop>
+        </header>
+    {/if}
+
+    {#if weather && !settings.quiet}
+        {@const info = describe(weather.code)}
+        {@const w = weather}
+        <aside class="weather-group" transition:pop>
             <Tooltip>
                 {#snippet anchor()}
-                    <span class="weather" tabindex="0" aria-label="{w.temp}°, {info.label}">
-                        {#key `${w.code}${w.day}`}
-                            <span class="wi" in:pop={{ duration: 200 }}>
-                                <WeatherIcon kind={info.kind} day={w.day} />
-                            </span>
-                        {/key}
-                        {#key `${w.temp}${w.unit}`}
-                            <span in:pop={{ from: 0.9, duration: 200 }}>{w.temp}°</span>
-                        {/key}
+                    <span class="weather" role="button" tabindex="0" aria-label="{w.temp}°, {info.label}">
+                        <span class="weather-summary">
+                            {#key `${w.code}${w.day}`}
+                                <span class="wi" in:pop={{ duration: 200 }}>
+                                    <WeatherIcon kind={info.kind} day={w.day} />
+                                </span>
+                            {/key}
+                            {#key `${w.temp}${w.unit}`}
+                                <span in:pop={{ from: 0.9, duration: 200 }}>{w.temp}°</span>
+                            {/key}
+                        </span>
+                        <span class="weather-place">{[w.place, w.country].filter(Boolean).join(", ")}</span>
+                        {#if w.high !== undefined && w.low !== undefined}
+                            <span class="weather-range">H {w.high}° · L {w.low}°</span>
+                        {/if}
                     </span>
                 {/snippet}
                 {#snippet content()}
@@ -385,29 +399,11 @@
                     </div>
                 {/snippet}
             </Tooltip>
-            </span>
-        {/if}
-    </header>
-{/if}
+        </aside>
+    {/if}
 
-
-<main
-    style:--below="{belowH}px"
-    class={["shell", settled && "settled", bg !== "none" && "glass-children", !starsArrived && "waiting", starsEntrance && "entrance"]}>
-    <!-- fixed box: both variants swap in place without moving the search -->
-    <div class="logo">
-        {#key settings.logoText}
-            <div class="logo-variant" transition:pop>
-                {#if settings.logoText}
-                    <HeliumLogo height="44px" text />
-                {:else}
-                    <HeliumLogo height="56px" />
-                {/if}
-            </div>
-        {/key}
-    </div>
-
-    <form class="search" onsubmit={search}>
+    {#if settings.searchBar}
+    <form class="search" onsubmit={search} transition:pop={{ from: 0.96, duration: 200 }}>
         <!-- like Helium's omnibox keyword mode (and exsesx/helium-new-tab):
              service icon and name, then a divider before the query -->
         <Input
@@ -470,6 +466,7 @@
             </ul>
         {/if}
     </form>
+    {/if}
 
     <!-- everything under the search; its height decides how far up the page sits -->
     <div class="below" bind:clientHeight={belowH}>
@@ -555,7 +552,7 @@
     :global(html),
     :global(body) {
         height: 100%;
-        overflow-x: hidden;
+        overflow: hidden;
     }
 
     .bg-layer {
@@ -608,40 +605,16 @@
         --side: left;
     }
 
-    /* after the star entrance: the UI rises out of the light, one piece after another */
-    .shell.waiting > :global(*) {
-        opacity: 0;
-    }
-
-    .shell.entrance:not(.waiting) > :global(*) {
-        animation: rise 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
-    }
-
-    .shell.entrance:not(.waiting) > :global(:nth-child(2)) {
-        animation-delay: 0.04s;
-    }
-
-    .shell.entrance:not(.waiting) > :global(:nth-child(3)) {
-        animation-delay: 0.08s;
-    }
-
-    .shell.entrance:not(.waiting) > :global(:nth-child(4)) {
-        animation-delay: 0.12s;
-    }
-
-    @keyframes rise {
-        from {
-            opacity: 0;
-            translate: 0 18px;
-            scale: 0.96;
-            filter: blur(10px);
-        }
-    }
-
     .logo {
+        position: fixed;
+        top: 28px;
+        left: 0;
+        right: 0;
+        z-index: 2;
         display: grid;
         place-items: center;
         height: 56px;
+        pointer-events: none;
     }
 
     .logo-variant {
@@ -656,17 +629,19 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 28px;
-        min-height: 100vh;
-        /* Logo + search sit at a fixed spot while what's under them fits; with more rows
-           (shortcuts, most visited) the whole block rises to stay centered. 160px is the
-           logo + search + gap. */
-        padding: max(48px, min(calc(50vh - 90px), calc(50vh - (160px + var(--below, 0px)) / 2)))
-            16px 96px;
+        justify-content: flex-end;
+        gap: 22px;
+        box-sizing: border-box;
+        min-height: 100dvh;
+        padding: 32px 16px 260px;
     }
 
     .shell.settled {
-        transition: padding-top 0.45s cubic-bezier(0.3, 1, 0.5, 1);
+        transition: padding-bottom 0.3s cubic-bezier(0.3, 1, 0.5, 1);
+    }
+
+    .shell.no-search {
+        padding-bottom: 360px;
     }
 
     .below {
@@ -683,29 +658,120 @@
 
     .datetime {
         position: fixed;
-        top: 16px;
-        left: 0;
-        right: 0;
+        top: 36%;
+        left: 50%;
         z-index: 2;
         display: flex;
+        flex-direction: column;
         justify-content: center;
-        gap: 8px;
-        font-size: 14px;
-        color: var(--secondary);
+        align-items: center;
+        color: var(--primary);
         font-variant-numeric: tabular-nums;
         pointer-events: none;
+        translate: -50% -50%;
     }
 
     .date::first-letter {
         text-transform: uppercase;
     }
 
-    .datetime .group,
     .datetime .time,
     .wi {
         display: inline-flex;
         align-items: center;
+        gap: 12px;
+    }
+
+    .clock-group,
+    .weather-group {
+        display: flex;
+        align-items: center;
+    }
+
+    .clock-group {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .datetime .time {
+        font-size: clamp(72px, 9vw, 112px);
+        font-weight: 600;
+        line-height: 1;
+        letter-spacing: -0.04em;
+    }
+
+    .datetime .date {
+        color: var(--secondary);
+        font-size: 18px;
+    }
+
+    .weather-group {
+        position: fixed;
+        left: 28px;
+        bottom: 24px;
+        z-index: 2;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+        color: var(--primary);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .weather-group .weather {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+        margin: -10px -12px;
+        padding: 10px 12px;
+        color: var(--primary);
+        font-size: 34px;
+        font-weight: 500;
+        line-height: 1;
+    }
+
+    .weather-summary {
+        display: inline-flex;
+        align-items: center;
         gap: 8px;
+    }
+
+    .weather-place,
+    .weather-range {
+        color: var(--secondary);
+        font-size: 15px;
+    }
+
+    .weather-range {
+        color: var(--tertiary);
+        font-size: 14px;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .weather-group .weather .wi {
+        gap: 0;
+    }
+
+    .weather-group .weather .wi :global(svg) {
+        width: 1.15em;
+        height: 1.15em;
+    }
+
+    .weather-group :global(.tooltip-anchor) {
+        display: inline-flex;
+        pointer-events: auto;
+    }
+
+    /* Prism follows the pointer by default, which sends this bottom-corner tooltip
+       below the viewport. Pin it above the weather block instead. */
+    .weather-group :global(.tooltip-container) {
+        top: auto !important;
+        right: auto !important;
+        bottom: 118px;
+        left: 28px !important;
+    }
+
+    .weather-group :global(.tooltip-content) {
+        border-radius: 12px !important;
     }
 
     .weather {
@@ -720,10 +786,6 @@
     .weather:focus-visible {
         outline: 2px solid var(--primary);
         outline-offset: 2px;
-    }
-
-    .datetime :global(.tooltip-anchor) {
-        pointer-events: auto;
     }
 
     .weather-details {
@@ -781,10 +843,6 @@
     .weather-details dd {
         margin: 0;
         text-align: right;
-    }
-
-    .dot {
-        color: var(--tertiary);
     }
 
     .search {

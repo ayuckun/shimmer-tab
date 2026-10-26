@@ -6,6 +6,7 @@ export type Settings = {
     hour12: boolean;
     seconds: boolean;
     browserTheme: boolean;
+    searchBar: boolean;
     bangs: boolean;
     logoText: boolean;
     /** focus mode: only the logo and the search bar */
@@ -31,6 +32,7 @@ export const defaults: Settings = {
     hour12: false,
     seconds: false,
     browserTheme: false,
+    searchBar: true,
     bangs: true,
     logoText: true,
     quiet: false,

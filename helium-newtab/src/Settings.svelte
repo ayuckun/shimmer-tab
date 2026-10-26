@@ -402,9 +402,14 @@
             <section>
                 <h5>Search</h5>
                 <div class="list">
-                    <Toggle bind:checked={settings.bangs} onchange={emphasize} name="Bangs" desc="!yt cats, !w helium, !gh prism" />
+                    <Toggle bind:checked={settings.searchBar} onchange={emphasize} name="Search bar" desc="Show search on the new tab page" />
+                    {#if settings.searchBar}
+                        <Toggle bind:checked={settings.bangs} onchange={emphasize} name="Bangs" desc="!yt cats, !w helium, !gh prism" />
+                    {/if}
                 </div>
-                <p class="note">Everything else goes to your default search engine.</p>
+                {#if settings.searchBar}
+                    <p class="note">Everything else goes to your default search engine.</p>
+                {/if}
             </section>
         {/if}
         </div>

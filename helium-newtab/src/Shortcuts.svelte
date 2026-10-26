@@ -131,7 +131,7 @@
             ondragend={() => (dragFrom = dragOver = null)}
         >
             <a class="button transparent tile" href={item.url} draggable="false" title={titles ? item.url : item.title || host(item.url)} aria-label={item.title || host(item.url)}>
-                <SiteIcon url={item.url} title={item.title} {contained} {tint} />
+                <SiteIcon url={item.url} title={item.title} size={60} {contained} {tint} />
                 {#if titles}
                     <span class="title" transition:collapse>{item.title || host(item.url)}</span>
                 {/if}
@@ -190,7 +190,7 @@
         justify-content: center;
         gap: 6px;
         /* room for 8 tiles in a row */
-        width: min(100%, 800px);
+        width: min(100%, 920px);
     }
 
     .tile-wrap {
@@ -207,7 +207,7 @@
         flex-direction: column;
         justify-content: flex-start;
         gap: 0;
-        width: 92px;
+        width: 108px;
         transition:
             background-color 0.2s,
             transform 0.2s,
@@ -215,7 +215,7 @@
             width 0.25s ease,
             padding 0.25s ease;
         min-height: 0;
-        padding: 12px 6px 10px !important;
+        padding: 14px 8px 12px !important;
         border: none;
         border-radius: 18px;
         color: var(--secondary);
@@ -225,7 +225,7 @@
     }
 
     .compact .tile {
-        width: 72px;
+        width: 84px;
         padding: 12px !important;
     }
 
@@ -245,7 +245,7 @@
         margin-top: 8px;
         max-width: 100%;
         overflow: hidden;
-        font-size: 13px;
+        font-size: 14px;
         white-space: nowrap;
         text-overflow: ellipsis;
         transition: color 0.2s;
@@ -258,9 +258,9 @@
     .add-icon {
         display: grid;
         place-items: center;
-        width: 48px;
-        height: 48px;
-        border-radius: 14px;
+        width: 60px;
+        height: 60px;
+        border-radius: 17px;
         background: var(--helium-elevated-7);
         transition: background-color 0.2s;
     }
@@ -270,8 +270,8 @@
     }
 
     .add-icon svg {
-        width: 20px;
-        height: 20px;
+        width: 24px;
+        height: 24px;
         stroke-width: 1.8;
     }
 
